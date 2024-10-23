@@ -30,11 +30,11 @@ public partial class TileDecalSystem : SystemBase
     private int mapSizeY;
     private const int mapZeroPoint = 0;
 
-    private SpriteRenderer oneRenderer;
-
     private float tempCameraSize;
     private Vector3 tempCameraPosition;
     private Camera rendererCamera;
+    private JobHandle renderTextureJobHandle;
+    private SpriteRenderer oneRenderer;
 
     /// <summary>
     /// for DynamicTexture
@@ -54,7 +54,6 @@ public partial class TileDecalSystem : SystemBase
 
         Sprite tempSprite = Sprite.Create(tempTexture, new Rect(0.0f, 0.0f, width, height), new Vector2(.5f, .5f), PixelsPerUnit);
         oneRenderer.sprite = tempSprite;
-        //RenderVisibleDecals();
     }
     /// </summary>
 
@@ -94,8 +93,6 @@ public partial class TileDecalSystem : SystemBase
         if (isFloorPositions.IsCreated)
             isFloorPositions.Dispose();
     }
-
-    private JobHandle renderTextureJobHandle;
 
     protected unsafe override void OnUpdate()
     {
@@ -150,7 +147,6 @@ public partial class TileDecalSystem : SystemBase
         float pivotY = decal.height / 2.0f;
 
         // for global coords in pixels
-        //here point (-pivotXold, -pivotYold) ==  its (x0,y0) "koordinati otnositel'no starogo pivota"
         float x0New = GetRotationAxisX(sin, cos, -pivotX, -pivotY) + matrix.c2.x;
         float y0New = GetRotationAxisY(sin, cos, -pivotX, -pivotY) + matrix.c2.y;
 
@@ -289,7 +285,7 @@ public partial class TileDecalSystem : SystemBase
         }
     }
 
-    //find 4 points of texture +- weight-height(look in my paper) //in global
+    //find 4 points of texture +- weight-height //in global
     private int[] CalculateBounds(float x0New, float y0New, float cos, float sin, float pivotX, float pivotY, float offsetX, float offsetY)
     {
         float p1X = x0New;
@@ -419,56 +415,6 @@ public unsafe struct CleanRangeTileDecalJob2 : IJobParallelFor
     }
     private float Distance2d(float2 center, int x, int y) => math.sqrt((center.x - x) * (center.x - x) + (center.y - y) * (center.y - y));
 }
-
-
-
-//[BurstCompile(CompileSynchronously = true)]
-//public unsafe partial struct CleanRangeTileDecalJob : IJobEntity
-//{
-//    [NativeDisableUnsafePtrRestriction] public Color32* TileDecalsPixelsPtr;
-
-//    [ReadOnly] public int MapSizeX;
-
-
-//    public void Execute(CritterComponent critter, PositionComponent position)
-//    {
-//        int2 centerPixelPoint = (int2)(position.Position * TileDecalSystem.PixelsPerUnit);
-//        int critterRange = (int)(1.5f * critter.Radius * TileDecalSystem.PixelsPerUnit);
-//        int fullCleanRange = (int)(critterRange * critter.CleaningQuality);
-//        int fullCleanRangeSquared = fullCleanRange * fullCleanRange;
-//        int maxCounts = critterRange * critterRange * 4;
-
-//        for (int i = 0; i < maxCounts; ++i)
-//        {
-//            int absX = i % (2 * critterRange) - critterRange;
-//            int absY = i / (2 * critterRange) - critterRange;
-
-//            int x = absX + centerPixelPoint.x;
-//            int y = absY + centerPixelPoint.y;
-//            int pixelPosInArray = x + y * MapSizeX * TileDecalSystem.PixelsPerUnit;
-//            int distSqr = absX * absX + absY * absY;
-
-//            if (distSqr <= fullCleanRangeSquared)
-//                *(TileDecalsPixelsPtr + pixelPosInArray) = Color.clear;
-//            else if (distSqr < critterRange * critterRange)
-//            {
-//                float dist = math.sqrt(distSqr);
-//                Color32 clr = *(TileDecalsPixelsPtr + pixelPosInArray);
-
-//                float targetAlfa = (dist - fullCleanRange) / (critterRange - fullCleanRange) * 255.0f;
-
-//                if (clr.a < targetAlfa)
-//                    continue;
-
-//                clr.a = (byte)(targetAlfa);
-//                *(TileDecalsPixelsPtr + pixelPosInArray) = clr;
-//            }
-
-
-//        }
-//    }
-//    private float Distance2d(float2 center, int x, int y) => math.sqrt((center.x - x) * (center.x - x) + (center.y - y) * (center.y - y));
-//}
 
 [BurstCompile(CompileSynchronously = true)]
 public unsafe struct CleanLineTileDecalJob : IJobParallelFor
@@ -600,7 +546,7 @@ public unsafe struct RenderDecalsJob : IJobParallelFor
     {
         int rendererLineOffset = lineIndex * DynamicTextureWidth;
         int mapDecalsLineOffset = (LowerPixel.y + lineIndex) * MapSize.x * TileSize + LowerPixel.x;
-        //if AllMapTilesPtr is out of bounds + magic offset
+        //if AllMapTilesPtr is out of bounds + offset
         if (mapDecalsLineOffset < 0 || mapDecalsLineOffset >= MapSize.y * MapSize.x * (TileSize - 1) * (TileSize - 1) || rendererLineOffset < 5)
             mapDecalsLineOffset = 0;
 
@@ -728,17 +674,3 @@ public unsafe struct RotateDecalJob : IJobParallelFor
         }
     }
 }
-
-// use this if need Resize Texture2D (check optimize)
-
-//private Texture2D Resize(Texture2D texture2D, int targetX, int targetY)
-//{
-//    RenderTexture rt = new RenderTexture(targetX, targetY, 1,RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-//    RenderTexture.active = rt;
-//    Graphics.Blit(texture2D, rt);
-//    Texture2D result = new Texture2D(targetX, targetY, TextureFormat.RGBA32, false);
-//    result.ReadPixels(new Rect(0,0, targetX, targetY),0,0);
-//    result.Apply();
-
-//    return result;
-//}
